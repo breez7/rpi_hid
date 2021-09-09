@@ -1,0 +1,12 @@
+[Unit]
+Description=HID Proxy
+After=bluetooth.service
+Requires=bluetooth.service
+
+[Service]
+ExecStart=/home/pi/pihidproxy/start.sh
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+
