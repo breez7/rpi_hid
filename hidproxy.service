@@ -4,7 +4,7 @@ After=bluetooth.service
 Requires=bluetooth.service
 
 [Service]
-ExecStart=/home/pi/pihidproxy/start.sh
+ExecStart=/home/pi/rpi_hid/start.sh
 Restart=always
 
 [Install]

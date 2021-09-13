@@ -34,25 +34,34 @@ echo -ne \\x05\\x01\\x09\\x02\\xa1\\x01\\x09\\x01\\xa1\\x00\\x05\\x09\\x19\\x01\
 ln -s functions/hid.usb1 configs/c.1/
 # End functions
 
-FILE1=/backingfiles/music_disk.bin
-mkdir -p /backingfiles/music.d 
-mount -o loop,ro,offset=$((2048*512)) -t vfat $FILE1 /backingfiles/music.d
-mkdir -p functions/mass_storage.usb2 
-echo 1 > functions/mass_storage.usb2/stall 
-echo 0 > functions/mass_storage.usb2/lun.0/cdrom 
-echo 0 > functions/mass_storage.usb2/lun.0/nofua 
-echo $FILE1 > functions/mass_storage.usb2/lun.0/file
-ln -s functions/mass_storage.usb2 configs/c.1/
+# xbox gamepad
+mkdir -p functions/hid.usb2
+echo 0 > functions/hid.usb2/protocol
+echo 0 > functions/hid.usb2/subclass
+echo 26 > functions/hid.usb2/report_length
+echo "05010905A1010501093AA102750895018101750895010501093B810105010901A100750115002501350045019504050109900991099309928102C075011500250135004501950405091907290A81027501950881017508150026FF00350046FF00950605091901290681027508150026FF00350046FF0095020501093209358102751016008026FF7F36008046FF7F05010901A10095020501093009318102C005010901A10095020501093309348102C0C00501093AA102750895019101750895010501093B91017508950191017508150026FF00350046FF0095010600FF090191027508950191017508150026FF00350046FF0095010600FF09029102C0C0" | xxd -r -ps >  functions/hid.usb2/report_desc
+ln -s functions/hid.usb2 configs/c.1/
 
-FILE2=/backingfiles/cam_disk.bin
-mkdir -p /backingfiles/cam.d 
-mount -o loop,ro,offset=$((2048*512)) -t vfat $FILE2 /backingfiles/cam.d
-mkdir -p functions/mass_storage.usb3 
-echo 1 > functions/mass_storage.usb3/stall 
-echo 0 > functions/mass_storage.usb3/lun.0/cdrom 
-echo 0 > functions/mass_storage.usb3/lun.0/nofua 
-echo $FILE2 > functions/mass_storage.usb3/lun.0/file
-ln -s functions/mass_storage.usb3 configs/c.1/
+# FILE1=/backingfiles/music_disk.bin
+# mkdir -p /backingfiles/music.d 
+# mount -o loop,ro,offset=$((2048*512)) -t vfat $FILE1 /backingfiles/music.d
+# mkdir -p functions/mass_storage.usb3 
+# echo 1 > functions/mass_storage.usb3/stall 
+# echo 0 > functions/mass_storage.usb3/lun.0/cdrom 
+# echo 0 > functions/mass_storage.usb3/lun.0/nofua 
+# echo $FILE1 > functions/mass_storage.usb3/lun.0/file
+# ln -s functions/mass_storage.usb3 configs/c.1/
+
+# FILE2=/backingfiles/cam_disk.bin
+# mkdir -p /backingfiles/cam.d 
+# mount -o loop,ro,offset=$((2048*512)) -t vfat $FILE2 /backingfiles/cam.d
+# mkdir -p functions/mass_storage.usb4 
+# echo 1 > functions/mass_storage.usb4/stall 
+# echo 0 > functions/mass_storage.usb4/lun.0/cdrom 
+# echo 0 > functions/mass_storage.usb4/lun.0/nofua 
+# echo $FILE2 > functions/mass_storage.usb4/lun.0/file
+# ln -s functions/mass_storage.usb4 configs/c.1/
+
 
 ls /sys/class/udc > UDC
 

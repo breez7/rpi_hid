@@ -14,17 +14,17 @@ if not os.geteuid() == 0:
     sys.exit("\nOnly root can run this script\n")
 
 # Load the configuration file, which is NOT an INI
-config = {}
-with open(os.path.dirname(os.path.abspath(__file__)) + "/config.conf") as f:
-    for line in f:
-        name, var = line.partition("=")[::2]
-        config[name.strip()] = var.lower().strip().strip('\"')
-
-
-
+#config = {}
+#with open(os.path.dirname(os.path.abspath(__file__)) + "/config.conf") as f:
+#    for line in f:
+#        name, var = line.partition("=")[::2]
+#        config[name.strip()] = var.lower().strip().strip('\"')
+#
+#
+#
 dev = {}
 NULL_CHAR = chr(0)
-print (config["devicename"])
+#print (config["devicename"])
 
 while not dev:
     try:

@@ -1,4 +1,4 @@
 #!/bin/sh -
-sudo /home/pi/pihidproxy/setuphid.sh
-#sudo /home/pi/pihidproxy/pair.sh
-sudo python3 /home/pi/pihidproxy/process.py
+sudo /home/pi/rpi_hid/setuphid.sh
+#sudo /home/pi/rpi_hid/pair.sh
+sudo python3 /home/pi/rpi_hid/process.py
