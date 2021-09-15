@@ -424,11 +424,11 @@ async def keyboard_handle_events(device):
                             elif event.code == evdev.ecodes.KEY_RIGHTCTRL:
                                 #write_report(chr(shift_held|alt_held|ctrl_held|meta_held) + NULL_CHAR + chr (0x91) + NULL_CHAR*5)
                                 if shift_held:
-                                    inject_keystring('jdytwnb7&&')
+                                    inject_keystring('jdy777')
                                 elif ctrl_held:
-                                    inject_keystring('lckdyfw7&&')
+                                    inject_keystring('lck')
                                 else:
-                                    inject_keystring('jdytwnb')
+                                    inject_keystring('jdy')
                             else:
                                 write_report(chr(shift_held|alt_held|ctrl_held|meta_held) + NULL_CHAR + chr ( hid_keyboard.index(data.scancode) ) + NULL_CHAR*5)
                     else:
