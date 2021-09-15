@@ -1,5 +1,5 @@
 
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 
 import evdev, time
 from evdev import InputDevice, categorize, ecodes
@@ -13,6 +13,94 @@ from struct import pack
 
 import threading
 import signal
+
+from game_pad import XBOXGamepad
+from game_pad import XBOXButton
+from game_pad import DPad
+
+from collections import defaultdict
+
+tesla = os.path.isfile('/backingfiles/music_disk.bin')
+gamepad = XBOXGamepad()
+gamepad.begin('/dev/hidg0')
+
+EVENT2BUTTON = defaultdict(lambda:XBOXButton.DUMMY)
+EVENT2BUTTON[ecodes.KEY_J] = XBOXButton.A
+EVENT2BUTTON[ecodes.KEY_K] = XBOXButton.B
+EVENT2BUTTON[ecodes.KEY_U] = XBOXButton.X
+EVENT2BUTTON[ecodes.KEY_I] = XBOXButton.Y
+EVENT2BUTTON[ecodes.KEY_H] = XBOXButton.LT
+EVENT2BUTTON[ecodes.KEY_L] = XBOXButton.RT
+EVENT2BUTTON[ecodes.KEY_Y] = XBOXButton.L3
+EVENT2BUTTON[ecodes.KEY_O] = XBOXButton.R3
+EVENT2BUTTON[ecodes.KEY_EQUAL] = XBOXButton.START
+EVENT2BUTTON[ecodes.KEY_MINUS] = XBOXButton.BACK
+
+EVENT2BUTTON[ecodes.BTN_LEFT] = XBOXButton.A
+EVENT2BUTTON[ecodes.BTN_RIGHT] = XBOXButton.B
+EVENT2BUTTON[ecodes.BTN_MIDDLE] = XBOXButton.X
+
+EVENT2BUTTON[ecodes.BTN_A] = XBOXButton.A
+EVENT2BUTTON[ecodes.BTN_B] = XBOXButton.B
+EVENT2BUTTON[ecodes.BTN_X] = XBOXButton.X
+EVENT2BUTTON[ecodes.BTN_Y] = XBOXButton.Y
+EVENT2BUTTON[ecodes.BTN_START] = XBOXButton.START
+EVENT2BUTTON[ecodes.BTN_SELECT] = XBOXButton.BACK
+EVENT2BUTTON[ecodes.BTN_TL] = XBOXButton.LT
+EVENT2BUTTON[ecodes.BTN_TR] = XBOXButton.RT
+EVENT2BUTTON[ecodes.BTN_THUMBL] = XBOXButton.L3
+EVENT2BUTTON[ecodes.BTN_THUMBR] = XBOXButton.R3
+
+EVENT2FUNC = defaultdict(lambda:gamepad.dummy)
+EVENT2FUNC[ecodes.REL_X] = gamepad.leftXAxis
+EVENT2FUNC[ecodes.REL_Y] = gamepad.leftYAxis
+EVENT2FUNC[ecodes.REL_WHEEL] = gamepad.leftZAxis
+EVENT2FUNC[ecodes.REL_HWHEEL] = gamepad.rightZAxis
+
+EVENT2FUNC[ecodes.KEY_N] = gamepad.leftZAxis
+EVENT2FUNC[ecodes.KEY_M] = gamepad.rightZAxis
+
+EVENT2FUNC[ecodes.ABS_X] = gamepad.leftXAxis
+EVENT2FUNC[ecodes.ABS_Y] = gamepad.leftYAxis
+EVENT2FUNC[ecodes.ABS_RX] = gamepad.rightXAxis
+EVENT2FUNC[ecodes.ABS_RY] = gamepad.rightYAxis
+EVENT2FUNC[ecodes.ABS_Z] = gamepad.leftZAxis
+EVENT2FUNC[ecodes.ABS_RZ] = gamepad.rightZAxis
+
+# up down left right
+UP = 0
+DOWN = 1
+LEFT = 2
+RIGHT = 3
+DIRECTION_KEYS = defaultdict(lambda:UP)
+DIRECTION_KEYS[ecodes.KEY_W] = UP
+DIRECTION_KEYS[ecodes.KEY_A] = LEFT
+DIRECTION_KEYS[ecodes.KEY_S] = DOWN
+DIRECTION_KEYS[ecodes.KEY_D] = RIGHT
+
+DIRECTION_STATE = [False, False, False, False]
+
+def get_direction():
+    if DIRECTION_STATE[UP] and DIRECTION_STATE[RIGHT]:
+        return DPad.UP_RIGHT
+    elif DIRECTION_STATE[UP] and DIRECTION_STATE[LEFT]:
+        return DPad.UP_LEFT
+    elif DIRECTION_STATE[DOWN] and DIRECTION_STATE[RIGHT]:
+        return DPad.DOWN_RIGHT
+    elif DIRECTION_STATE[DOWN] and DIRECTION_STATE[LEFT]:
+        return DPad.DOWN_LEFT
+    elif DIRECTION_STATE[UP]:
+        return DPad.UP
+    elif DIRECTION_STATE[DOWN]:
+        return DPad.DOWN
+    elif DIRECTION_STATE[LEFT]:
+        return DPad.LEFT
+    elif DIRECTION_STATE[RIGHT]:
+        return DPad.RIGHT
+    else:
+        return DPad.CENTERED
+
+
 first = True
 dev = {}
 
@@ -21,13 +109,14 @@ os.system('echo 0 | sudo tee /sys/class/leds/led0/brightness')
 NULL_CHAR = chr(0)
 is_exit = False
 def write_report(report):
-    with open('/dev/hidg0', 'rb+') as fd:
+    with open('/dev/hidg2', 'rb+') as fd:
         fd.write(bytes(report, encoding='utf8'))
 def write_report_mouse(report):
     with open('/dev/hidg1', 'rb+') as fd:
         fd.write(report)
-def write_report_gamepad(report):
-    with open('/dev/hidg2', 'rb+') as fd:
+
+def write_report_gamepad():
+    with open('/dev/hidg0', 'rb+') as fd:
         fd.write(report)
 
 def signal_handler(s, frmae):
@@ -284,14 +373,24 @@ alt_held = False
 meta_held = False
 alt_state = 0
 old_mouse_btn = 0
+mouse_middle_held = False
 
 
 async def keyboard_handle_events(device):
-    global shift_held, ctrl_held, alt_held, meta_held, alt_state, old_mouse_btn
+    global shift_held, ctrl_held, alt_held, meta_held, alt_state, old_mouse_btn, mouse_middle_held
     with device.grab_context():
         async for event in device.async_read_loop():
             if event.type == ecodes.EV_KEY:
                 data = categorize(event)
+                if mouse_middle_held:
+                    if data.keystate == 1:
+                        if event.code == ecodes.KEY_J:
+                            write_report_mouse(pack('<Bbbb', 1 << 3 ,0,0,0))
+                        elif event.code == ecodes.KEY_K:
+                            write_report_mouse(pack('<Bbbb', 1 << 4 ,0,0,0))
+                    elif data.keystate == 0:
+                            write_report_mouse(pack('<Bbbb', 0,0,0,0))
+                    continue
                 if event.code == evdev.ecodes.KEY_LEFTSHIFT or event.code == evdev.ecodes.KEY_RIGHTSHIFT:
                     if data.keystate != 0:
                         shift_held = 0x2
@@ -339,54 +438,104 @@ async def keyboard_handle_events(device):
                     write_report(chr(shift_held|alt_held|ctrl_held|meta_held) + NULL_CHAR*7)
 
 async def mouse_handle_events(device):
-    global shift_held, ctrl_held, alt_held, meta_held, alt_state, old_mouse_btn
+    global shift_held, ctrl_held, alt_held, meta_held, alt_state, old_mouse_btn, mouse_middle_held
     with device.grab_context():
         async for event in device.async_read_loop():
             if event.type == ecodes.EV_KEY:
                 data = categorize(event)
                 if data.keystate == 1 or data.keystate == 2:  # Down & hold events
-                    if event.code == evdev.ecodes.BTN_LEFT or event.code == evdev.ecodes.BTN_RIGHT or event.code == evdev.ecodes.BTN_MIDDLE:
-                        #print('mouse btn {}'.format(event.code))
-                        old_mouse_btn = data.scancode - 271
-                        write_report_mouse(pack('<Bbb', data.scancode - 271,0,0))
+                    if event.code == evdev.ecodes.BTN_MIDDLE:
+                        print('m hlod')
+                        mouse_middle_held = True
+                    else:
+                        if event.code == evdev.ecodes.BTN_LEFT:
+                            old_mouse_btn = 1 
+                        elif event.code == evdev.ecodes.BTN_RIGHT:
+                            old_mouse_btn = 1 << 1
+                        elif event.code == evdev.ecodes.BTN_FORWARD or \
+                            event.code == evdev.ecodes.BTN_EXTRA:
+                            old_mouse_btn = 1 << 4
+                        elif event.code == evdev.ecodes.BTN_BACK or \
+                            event.code == evdev.ecodes.BTN_SIDE:
+                            old_mouse_btn = 1 << 3
+                        write_report_mouse(pack('<Bbbb', old_mouse_btn,0,0,0))
                 elif data.keystate == 0: # Up events
-                    if event.code == evdev.ecodes.BTN_LEFT or event.code == evdev.ecodes.BTN_RIGHT or event.code == evdev.ecodes.BTN_MIDDLE:
-                        #print('mouse btn {}'.format(event.code))
-                        old_mouse_btn = 0
-                        write_report_mouse(pack('<Bbb',0,0,0))
+                    if event.code == evdev.ecodes.BTN_MIDDLE:
+                        print('m unhlod')
+                        mouse_middle_held = False
+                    old_mouse_btn = 0
+                    write_report_mouse(pack('<Bbbb',0,0,0,0))
             elif event.type == ecodes.EV_REL:
                 if event.code == ecodes.REL_X:
-                    write_report_mouse(pack('<Bbb', old_mouse_btn,event.value,0))
+                    write_report_mouse(pack('<Bbbb', old_mouse_btn,event.value,0,0))
                 elif event.code == ecodes.REL_Y:
-                    write_report_mouse(pack('<Bbb', old_mouse_btn,0,event.value))
+                    write_report_mouse(pack('<Bbbb', old_mouse_btn,0,event.value,0))
                 elif event.code == ecodes.REL_HWHEEL:
-                    print('rel_hwheel {}'.format(event.value))
+                    pass
                 elif event.code == ecodes.REL_WHEEL:
-                    print('rel_wheel {}'.format(event.value))
-                write_report_mouse(pack('<Bbb', old_mouse_btn,0,0))
+                    write_report_mouse(pack('<Bbbb', old_mouse_btn,0,0,event.value))
+                write_report_mouse(pack('<Bbbb', old_mouse_btn,0,0,0))
 
-async def gamepad_handle_events(device):
-    global shift_held, ctrl_held, alt_held, meta_held, alt_state, old_mouse_btn
+async def gamepad_from_keyboard_mouse_handle_events(device):
+    global shift_held, ctrl_held, alt_held, meta_held, alt_state, old_mouse_btn, gamepad
+    right_throttle = 0
+    left_throttle =0
+    global up,down,left,right
     with device.grab_context():
         async for event in device.async_read_loop():
             if event.type == ecodes.EV_KEY:
                 data = categorize(event)
-                print('ev_key {}'.format(data))
+                print('ev_key {} {}'.format(event, data))
                 if data.keystate == 1 or data.keystate ==2:
-                    if event.code == ecodes.BTN_LEFT:
-                        write_report_gamepad(pack('<BBBBBBBBBBBBhhhh',0,0x14,0,0, 255,0,0,0,0,0,0,0, 0,0,0,0))
-                    elif event.code == ecodes.BTN_RIGHT:
-                        write_report_gamepad(pack('<BBBBBBBBBBBBhhhh',0,0x14,0,0, 0,255,0,0,0,0,0,0, 0,0,0,0))
-                    elif event.code == ecodes.BTN_MIDDLE:
-                        write_report_gamepad(pack('<BBBBBBBBBBBBhhhh',0,0x14,0,0, 0,0,255,0,0,0,0,0, 0,0,0,0))
+                    if event.code in DIRECTION_KEYS.keys():
+                        DIRECTION_STATE[DIRECTION_KEYS[event.code]] = True
+                        gamepad.press_dpad(get_direction())
+                    elif event.code == ecodes.KEY_N:
+                        left_throttle += 10
+                        EVENT2FUNC[event.code](left_throttle)
+                    elif event.code == ecodes.KEY_M:
+                        right_throttle += 10
+                        EVENT2FUNC[event.code](right_throttle)
+                    else:
+                        gamepad.press(EVENT2BUTTON[event.code])
                 elif data.keystate == 0:
-                        write_report_gamepad(pack('<BBBBBBBBBBBBhhhh',0,0x14,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0))
+                    if event.code in DIRECTION_KEYS.keys():
+                        DIRECTION_STATE[DIRECTION_KEYS[event.code]] = False
+                        gamepad.press_dpad(get_direction())
+                    elif event.code == ecodes.KEY_N:
+                        left_throttle = 0
+                        EVENT2FUNC[event.code](left_throttle)
+                    elif event.code == ecodes.KEY_M:
+                        right_throttle = 0
+                        EVENT2FUNC[event.code](right_throttle)
+                    else:
+                        gamepad.release(EVENT2BUTTON[event.code])
             elif event.type == ecodes.EV_REL:
-                print('ev_rel {}'.format(event.value))
-                if event.code == ecodes.REL_X:
-                    write_report_gamepad(pack('<BBBBBBBBBBBBhhhh',0,0x14,0,0, 0,0,0,0,0,0,0,0, event.value*800,0,0,0))
-                if event.code == ecodes.REL_Y:
-                    write_report_gamepad(pack('<BBBBBBBBBBBBhhhh',0,0x14,0,0, 0,0,0,0,0,0,0,0, 0,event.value*800,0,0))
+                print('ev_rel {} '.format(event))
+                if event.code == ecodes.REL_WHEEL:
+                    left_throttle += event.value * 10
+                    event.value = left_throttle
+                elif event.code == ecodes.REL_HWHEEL:
+                    right_throttle += event.value * 10
+                    event.value = right_throttle
+
+                EVENT2FUNC[event.code](event.value)
+
+async def gamepad_handle_events(device):
+    global shift_held, ctrl_held, alt_held, meta_held, alt_state, old_mouse_btn, gamepad
+    with device.grab_context():
+        async for event in device.async_read_loop():
+            if event.type == ecodes.EV_KEY:
+                data = categorize(event)
+                print('ev_key {} {}'.format(event, data))
+                if data.keystate == 1 or data.keystate ==2:
+                    gamepad.press(EVENT2BUTTON[event.code])
+                elif data.keystate == 0:
+                    gamepad.release(EVENT2BUTTON[event.code])
+            elif event.type == ecodes.EV_REL:
+                print('ev_rel {} '.format(event))
+                EVENT2FUNC[event.code](event.value)
+
 
 #loop
 time.sleep(2)
@@ -396,98 +545,25 @@ for key in dev.keys():
     if evdev.ecodes.EV_KEY in dev[key].capabilities():
         if evdev.ecodes.KEY_A in dev[key].capabilities()[evdev.ecodes.EV_KEY]:
             print('keyboard'), dev[key]
-            asyncio.ensure_future(keyboard_handle_events(dev[key]))
+            if tesla:
+                asyncio.ensure_future(gamepad_from_keyboard_mouse_handle_events(dev[key]))
+            else:
+                asyncio.ensure_future(keyboard_handle_events(dev[key]))
         elif evdev.ecodes.KEY_SEARCH in dev[key].capabilities()[evdev.ecodes.EV_KEY]:
-            print('keyboard'), dev[key]
+            print('media key'), dev[key]
             asyncio.ensure_future(keyboard_handle_events(dev[key]))
-        # elif evdev.ecodes.BTN_MOUSE in dev[key].capabilities()[evdev.ecodes.EV_KEY]:
-        #     print('mouse'), dev[key]
-            # asyncio.ensure_future(mouse_handle_events(dev[key]))
-        # elif evdev.ecodes.BTN_START in dev[key].capabilities()[evdev.ecodes.EV_KEY]:
-        #     print('xbox gamepad'), dev[key]
-        #     asyncio.ensure_future(gamepad_handle_events(dev[key]))
         elif evdev.ecodes.BTN_MOUSE in dev[key].capabilities()[evdev.ecodes.EV_KEY]:
+            print('mouse'), dev[key]
+            if tesla:
+                asyncio.ensure_future(gamepad_from_keyboard_mouse_handle_events(dev[key]))
+            else:
+                asyncio.ensure_future(mouse_handle_events(dev[key]))
+        elif evdev.ecodes.BTN_START in dev[key].capabilities()[evdev.ecodes.EV_KEY]:
             print('xbox gamepad'), dev[key]
             asyncio.ensure_future(gamepad_handle_events(dev[key]))
 
 loop = asyncio.get_event_loop()
 loop.run_forever()
         
-# try:
-#     while True:
-#         try:
-#             r, w, x = select(dev, [], [])
-#             for fd in r:
-#                 for event in dev[fd].read():
-#                     if event.type == ecodes.EV_KEY:
-#                         data = categorize(event)
-#                         if event.code == evdev.ecodes.KEY_LEFTSHIFT or event.code == evdev.ecodes.KEY_RIGHTSHIFT:
-#                             if data.keystate != 0:
-#                                 shift_held = 0x2
-#                             else:
-#                                 shift_held = 0
-#                         if event.code == evdev.ecodes.KEY_CAPSLOCK:
-#                             if data.keystate != 0:
-#                                 ctrl_held = 0x1
-#                             else:
-#                                 ctrl_held = 0
-#                         if event.code == evdev.ecodes.KEY_LEFTALT:
-#                             alt_state = data.keystate
-#                             if data.keystate != 0:
-#                                 alt_held = 0x4
-#                             else:
-#                                 alt_held = 0
-#                         if event.code == evdev.ecodes.KEY_LEFTMETA:
-#                             if data.keystate != 0:
-#                                 meta_held = 0x8
-#                             else:
-#                                 meta_held = 0
-#                         if data.keystate == 1 or data.keystate == 2:  # Down & hold events
-#                             if data.scancode in hid_keyboard:
-# #                                print('hid keyboard {:x} alt {} ctrl {} shift {}'.format(hid_keyboard.index(data.scancode),alt_held,ctrl_held,shift_held))
-# #                                print(data)
-#                                 if event.code == evdev.ecodes.KEY_LEFTALT or event.code == evdev.ecodes.KEY_CAPSLOCK or event.code == evdev.ecodes.KEY_LEFTMETA or event.code == evdev.ecodes.KEY_LEFTSHIFT or event.code == evdev.ecodes.KEY_RIGHTSHIFT:
-#                                     write_report(chr(shift_held|alt_held|ctrl_held|meta_held)  + NULL_CHAR*7)
-#                                 else:
-#                                     if event.code == evdev.ecodes.KEY_RIGHTALT:
-#                                         write_report(chr(shift_held|alt_held|ctrl_held|meta_held) + NULL_CHAR + chr (0x90) + NULL_CHAR*5)
-#                                     if event.code == evdev.ecodes.KEY_RIGHTCTRL:
-#                                         #write_report(chr(shift_held|alt_held|ctrl_held|meta_held) + NULL_CHAR + chr (0x91) + NULL_CHAR*5)
-#                                         if shift_held:
-#                                             inject_keystring('jdytwnb7&&')
-#                                         elif ctrl_held:
-#                                             inject_keystring('lckdyfw7&&')
-#                                         else:
-#                                             inject_keystring('jdytwnb')
-#                                     else:
-#                                         write_report(chr(shift_held|alt_held|ctrl_held|meta_held) + NULL_CHAR + chr ( hid_keyboard.index(data.scancode) ) + NULL_CHAR*5)
-#                             else:
-#                                 # media key handler, supposedly. Not working for stuff like mute ke&&y.
-# #                                print('hid mouse')
-# #                                print(data)
-#                                 if event.code == evdev.ecodes.BTN_LEFT or event.code == evdev.ecodes.BTN_RIGHT or event.code == evdev.ecodes.BTN_MIDDLE:
-#                                     old_mouse_btn = data.scancode - 271
-#                                     write_report_mouse(pack('<Bbb', data.scancode - 271,0,0))
-#                         if data.keystate == 0: # Up events
-#                             if event.code == evdev.ecodes.BTN_LEFT or event.code == evdev.ecodes.BTN_RIGHT or event.code == evdev.ecodes.BTN_MIDDLE:
-#                                 old_mouse_btn = 0
-#                                 write_report_mouse(pack('<Bbb',0,0,0))
-#                             else:
-#                                 write_report(chr(shift_held|alt_held|ctrl_held|meta_held) + NULL_CHAR*7)
-#                     else:
-#                         if event.type == 2 and (event.code == 0 or event.code == 1):
-# #                            print("event {} {} {}".format(event.code, event.type, event.value))
-#                             if event.code == 0:
-#                                 write_report_mouse(pack('<Bbb', old_mouse_btn,event.value,0))
 
-#                             if event.code == 1:
-#                                 write_report_mouse(pack('<Bbb', old_mouse_btn,0,event.value))
-#                             write_report_mouse(pack('<Bbb', old_mouse_btn,0,0))
-#         except OSError:
-#             time.sleep(3)
-# except KeyboardInterrupt:
-#     pass
-# #    write_report(NULL_CHAR*8)
-# #    os.system('echo 0 | sudo tee /sys/class/leds/led0/brightness')
-# #    sys.exit()
 
