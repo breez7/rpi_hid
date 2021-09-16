@@ -21,6 +21,7 @@ from game_pad import DPad
 from collections import defaultdict
 
 tesla = os.path.isfile('/backingfiles/music_disk.bin')
+tesla = False
 gamepad = XBOXGamepad()
 gamepad.begin('/dev/hidg0')
 
@@ -62,10 +63,12 @@ EVENT2FUNC[ecodes.KEY_M] = gamepad.rightZAxis
 
 EVENT2FUNC[ecodes.ABS_X] = gamepad.leftXAxis
 EVENT2FUNC[ecodes.ABS_Y] = gamepad.leftYAxis
-EVENT2FUNC[ecodes.ABS_RX] = gamepad.rightXAxis
-EVENT2FUNC[ecodes.ABS_RY] = gamepad.rightYAxis
-EVENT2FUNC[ecodes.ABS_Z] = gamepad.leftZAxis
-EVENT2FUNC[ecodes.ABS_RZ] = gamepad.rightZAxis
+EVENT2FUNC[ecodes.ABS_Z] = gamepad.rightXAxis
+EVENT2FUNC[ecodes.ABS_RZ] = gamepad.rightYAxis
+EVENT2FUNC[ecodes.ABS_BRAKE] = gamepad.leftZAxis
+EVENT2FUNC[ecodes.ABS_GAS] = gamepad.rightZAxis
+#EVENT2FUNC[ecodes.ABS_Z] = gamepad.leftZAxis
+#EVENT2FUNC[ecodes.ABS_RZ] = gamepad.rightZAxis
 
 # up down left right
 UP = 0
@@ -190,31 +193,6 @@ t.start()
 
 if not os.geteuid() == 0:
     sys.exit("\nOnly root can run this script\n")
-
-# Load the configuration file, which is NOT an INI
-#config = {}
-#with open(os.path.dirname(os.path.abspath(__file__)) + "/config.conf") as f:
-#    for line in f:
-#        name, var = line.partition("=")[::2]
-#        config[name.strip()] = var.lower().strip().strip('\"')
-#
-#
-#
-#print (config["devicename"])
-
-# while not dev:
-#     try:
-#         devices = [path for path in evdev.list_devices()]
-#         for device in devices:
-#             a = InputDevice(device)
-#             dev[a.fd] = a
-#             a.grab()
-
-#         for d in dev.values(): print(d)
-#     except:
-#         print("No keyboard - waiting...")
-#         time.sleep(1)
-
 
 def inject_keystring(keys):
     for key in keys:
@@ -358,14 +336,6 @@ hid_keyboard = [
 
 # https://github.com/torvalds/linux/blob/master/drivers/hid/hid-input.c
 # https://github.com/torvalds/linux/blob/master/include/uapi/linux/input-event-codes.h later?
-
-
-
-#for i in range(len(hid_keyboard)):
-#    if hid_keyboard[i] > -1:
-#        print("hid %d: %d %s" % (i, hid_keyboard[i], ecodes.KEY[ hid_keyboard[i] ] ))
-#    else:
-#        print("hid %d: %d %s" % (i, hid_keyboard[i], ""))
 
 shift_held = False
 ctrl_held = False
@@ -514,12 +484,12 @@ async def gamepad_from_keyboard_mouse_handle_events(device):
                 print('ev_rel {} '.format(event))
                 if event.code == ecodes.REL_WHEEL:
                     left_throttle += event.value * 10
-                    event.value = left_throttle
+                    EVENT2FUNC[event.code](left_throttle)
                 elif event.code == ecodes.REL_HWHEEL:
                     right_throttle += event.value * 10
-                    event.value = right_throttle
-
-                EVENT2FUNC[event.code](event.value)
+                    EVENT2FUNC[event.code](right_throttle)
+                else:
+                    EVENT2FUNC[event.code](event.value + 127)
 
 async def gamepad_handle_events(device):
     global shift_held, ctrl_held, alt_held, meta_held, alt_state, old_mouse_btn, gamepad
@@ -527,14 +497,36 @@ async def gamepad_handle_events(device):
         async for event in device.async_read_loop():
             if event.type == ecodes.EV_KEY:
                 data = categorize(event)
-                print('ev_key {} {}'.format(event, data))
                 if data.keystate == 1 or data.keystate ==2:
                     gamepad.press(EVENT2BUTTON[event.code])
                 elif data.keystate == 0:
                     gamepad.release(EVENT2BUTTON[event.code])
             elif event.type == ecodes.EV_REL:
-                print('ev_rel {} '.format(event))
                 EVENT2FUNC[event.code](event.value)
+            elif event.type == ecodes.EV_ABS:
+                if event.code == ecodes.ABS_GAS or event.code == ecodes.ABS_BRAKE:
+                    EVENT2FUNC[event.code](event.value)
+                elif event.code == ecodes.ABS_HAT0X or event.code == ecodes.ABS_HAT0Y:
+                    if event.code == ecodes.ABS_HAT0X:
+                        if event.value == 0:
+                            DIRECTION_STATE[RIGHT] = False
+                            DIRECTION_STATE[LEFT] = False
+                        elif event.value == 1:
+                            DIRECTION_STATE[RIGHT] = True
+                        elif event.value == -1:
+                            DIRECTION_STATE[LEFT] = True
+                    if event.code == ecodes.ABS_HAT0Y:
+                        if event.value == 0:
+                            DIRECTION_STATE[UP] = False
+                            DIRECTION_STATE[DOWN] = False
+                        elif event.value == 1:
+                            DIRECTION_STATE[DOWN] = True
+                        elif event.value == -1:
+                            DIRECTION_STATE[UP] = True
+                    gamepad.press_dpad(get_direction())
+                else:
+                    print('rel {}'.format(event))
+                    EVENT2FUNC[event.code](event.value)
 
 
 #loop

@@ -32,10 +32,10 @@ class XBOXButton(IntEnum):
     X = 3
     LT = 4
     RT = 5
-    START = 6
-    BACK = 7
-    L3 = 8
-    R3 = 9
+    L3 = 6
+    R3 = 7
+    BACK = 8
+    START = 9
     DUMMY = 10
 
 class NSButton(IntEnum):
@@ -83,10 +83,10 @@ class XBOXGamepad():
 
     def __init__(self):
         self.thread_lock = threading.Lock()
-        self.left_x_axis = 0
-        self.left_y_axis = 0
-        self.right_x_axis = 0
-        self.right_y_axis = 0
+        self.left_x_axis = 128
+        self.left_y_axis = 128
+        self.right_x_axis = 128
+        self.right_y_axis = 128
         self.left_z_axis = 0
         self.right_z_axis = 0
         self.my_buttons = 0
@@ -95,10 +95,10 @@ class XBOXGamepad():
     def begin(self, devname):
         with self.thread_lock:
             self.devhandle = open(devname, 'wb+')
-            self.left_x_axis = 0 
-            self.left_y_axis = 0
-            self.right_x_axis = 0
-            self.right_y_axis = 0
+            self.left_x_axis = 128 
+            self.left_y_axis = 128
+            self.right_x_axis = 128
+            self.right_y_axis = 128
             self.left_z_axis = 0
             self.right_z_axis = 0
             self.my_buttons = 0
@@ -111,7 +111,7 @@ class XBOXGamepad():
         return
 
     def write(self):
-        self.devhandle.write(pack('<HBbbbbBBB',
+        self.devhandle.write(pack('<HBBBBBBBB',
             self.my_buttons, self.d_pad,
             self.left_x_axis, self.left_y_axis, \
             self.right_x_axis, self.right_y_axis, \
@@ -176,10 +176,10 @@ class XBOXGamepad():
     def leftXAxis(self, position):
         """Move left stick X axis 0..128..255"""
         # position += self.left_x_axis
-        if position < -127:
-            position = -127
-        if position > 127:
-            position = 127
+        if position < 0:
+            position = 0
+        if position > 255:
+            position = 255
         with self.thread_lock:
             self.left_x_axis = position
             self.write()
@@ -188,10 +188,10 @@ class XBOXGamepad():
     def leftYAxis(self, position):
         """Move left stick Y axis 0..128..255"""
         # position += self.left_y_axis
-        if position < -127:
-            position = -127
-        if position > 127:
-            position = 127
+        if position < 0:
+            position = 0
+        if position > 255:
+            position = 255
         with self.thread_lock:
             self.left_y_axis = position
             self.write()
@@ -200,10 +200,10 @@ class XBOXGamepad():
     def rightXAxis(self, position):
         """Move right stick X axis 0..128..255"""
         # position += self.right_x_axis
-        if position < -127:
-            position = -127
-        if position > 127:
-            position = 127
+        if position < 0:
+            position = 0
+        if position > 255:
+            position = 255
         with self.thread_lock:
             self.right_x_axis = position
             self.write()
@@ -212,10 +212,10 @@ class XBOXGamepad():
     def rightYAxis(self, position):
         """Move right stick Y axis 0..128..255"""
         # position += self.right_y_axis
-        if position < -127:
-            position = -127
-        if position > 127:
-            position = 127
+        if position < 0:
+            position = 0
+        if position > 255:
+            position = 255
         with self.thread_lock:
             self.right_y_axis = position
             self.write()
@@ -229,7 +229,6 @@ class XBOXGamepad():
             position = 255
         with self.thread_lock:
             self.left_z_axis = position
-            print('leftZ {}'.format(position))
             self.write()
         return
 
@@ -241,7 +240,6 @@ class XBOXGamepad():
             position = 255
         with self.thread_lock:
             self.right_z_axis = position
-            print('rightZ {}'.format(position))
             self.write()
         return
 
